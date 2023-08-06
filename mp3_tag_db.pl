@@ -6,7 +6,6 @@ use MP3::Tag;
 use Data::Dumper;
 use Data::UUID;
 use open qw/:std :utf8/;
-
 use DBI;
 
 my $dbfile = "...";
@@ -243,7 +242,7 @@ while ( my $file = $it->() ) {
 
 
     print "$trck\t$tpos\t$tcmp\t$tcon\t$tdor\t$tdrc\t$tenc\t$tsse\t$tden\t$tsrc\t$ufid\t$tit2   $talb   $tpe1   $tpe2\n";
-    $sth->execute(undef, $talb, $tpe1, $tpe2, $tpos, $trck, $tcon, $tdor, $tit2, $ufid, $tdrc, undef);
+    $sth->execute(undef, $talb, $tpe2, $tpe1, $tpos, $trck, $tcon, $tdor, $tit2, $ufid, $tdrc, undef);
 
     $key++;
 }
