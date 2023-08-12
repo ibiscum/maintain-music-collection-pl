@@ -8,41 +8,31 @@ use Data::UUID;
 use open qw/:std :utf8/;
 use DBI;
 
-my $dbfile = "...";
+my $dbfile = "/mnt/c/Users/Ulf/Music/iTunes/music.db";
 my $dbh = DBI->connect("dbi:SQLite:dbname=$dbfile","","");
-my $sth = $dbh->prepare('INSERT INTO ITEM VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+my $sth = $dbh->prepare('INSERT INTO MP3 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
  
-my $ug = Data::UUID->new;
-
 local $SIG{__WARN__} = sub {
     my $message = shift;
     die $message;
 };
 
 my $key = 0;
-my $trck;
-my $tpos;
-my $tcon;
-my $tcmp;
-my $tdrc;
-my $tenc;
-my $tsse;
-my $tden;
-my $talb;
-my $tit2;
-my $tpe1;
-my $tpe2;
-my $tkey;
-my $tsrc;
-my $tsoa;
-my $tso2;
-my $tsop;
-my $tbpm;
-my $comm;
-my $tcom;
-my $tdor;
-my $ufid;
 
+my $talb;
+my $trck;
+my $tcmp;
+my $tcon;
+my $tdor;
+my $tdrc;
+my $tpos;
+my $tit2;
+my $tsoa;
+my $tpe2;
+my $tso2;
+my $tpe1;
+my $ufid;
+my $tsop;
      
 die "Usage: $0 DIRs" if not @ARGV;
      
@@ -108,44 +98,12 @@ while ( my $file = $it->() ) {
         $tsop = $info[0];
     }
 
-    # BPM
-    if ($id3v2->frame_have('TBPM') == 0) {
-        $tbpm = "TBPM N/A";
-    } else {
-        (my $name, my @info) = $id3v2->get_frames('TBPM');
-        $tbpm = $info[0];
-    }
-
-    # COMMENT
-    if ($id3v2->frame_have('COMM') == 0) {
-        $comm = "COMM N/A";
-    } else {
-        (my $name, my @info) = $id3v2->get_frames('COMM');
-        $comm = $info[0];
-    }
-
     # COMPILATION
     if ($id3v2->frame_have('TCMP') == 0) {
         $tcmp = 0;
     } else {
         (my $name, my @info) = $id3v2->get_frames('TCMP');
         $tcmp = $info[0];
-    }
-
-    # COMPOSER
-    if ($id3v2->frame_have('TCOM') == 0) {
-        $tcom = "TCOM N/A";
-    } else {
-        (my $name, my @info) = $id3v2->get_frames('TCOM');
-        $comm = $info[0];
-    }
-
-    if ($id3v2->frame_have('TRCK') == 0) {
-        print "TRCK missing: " . $file . "\n";
-        exit 1;
-    } else {
-        (my $name, my @info) = $id3v2->get_frames('TRCK');
-        $trck = $info[0];
     }
 
     # DISCNUMBER
@@ -157,31 +115,7 @@ while ( my $file = $it->() ) {
         $tpos = $info[0];
     }
 
-    # ENCODEDBY
-    if ($id3v2->frame_have('TENC') == 0) {
-        $tenc = "N/A";
-    } else {
-        (my $name, my @info) = $id3v2->get_frames('TENC');
-        $tenc = $info[0];
-    }
-
-    # ENCODERSETTINGS
-    if ($id3v2->frame_have('TSSE') == 0) {
-        $tsse = "N/A";
-    } else {
-        (my $name, my @info) = $id3v2->get_frames('TSSE');
-        $tsse = $info[0];
-    }
-
-    # ENCODINGTIME
-    if ($id3v2->frame_have('TDEN') == 0) {
-        $tden = "N/A";
-    } else {
-        (my $name, my @info) = $id3v2->get_frames('TDEN');
-        $tden = $info[0];
-    }
-
-    # 
+    # CONTENT / GENRE 
     if ($id3v2->frame_have('TCON') == 0) {
         print "TCON missing: " . $file . "\n";
         exit 1;
@@ -190,6 +124,33 @@ while ( my $file = $it->() ) {
         $tcon = $info[0];
     }
 
+    # ORIGYEAR
+    if ($id3v2->frame_have('TDOR') == 0) {
+        $tdor = "TDOR N/A";
+    } else {
+        (my $name, my @info) = $id3v2->get_frames('TDOR');
+        $tdor = $info[0];
+    }
+
+    # PART OF SET
+    if ($id3v2->frame_have('TPOS') == 0) {
+        $tdor = "TPOS N/A";
+        exit 1;
+    } else {
+        (my $name, my @info) = $id3v2->get_frames('TPOS');
+        $tpos = $info[0];
+    }
+
+    # TRACK
+    if ($id3v2->frame_have('TRCK') == 0) {
+        print "TRCK missing: " . $file . "\n";
+        exit 1;
+    } else {
+        (my $name, my @info) = $id3v2->get_frames('TRCK');
+        $trck = $info[0];
+    }
+
+    # TITLE
     if ($id3v2->frame_have('TIT2') == 0) {
         print "TIT2 missing: " . $file . "\n";
         exit 1;
@@ -200,25 +161,9 @@ while ( my $file = $it->() ) {
         print $tit2 . "\n";
     }
 
-    # if ($id3v2->frame_have('TKEY') == 0) {
-    #     $tkey = "TKEY N/A"
-    # } else {
-    #     (my $name, my @info) = $id3v2->get_frames('TKEY');
-    #     $tkey = $info[0];
-    # }
-
-    if ($id3v2->frame_have('TSRC') == 0) {
-        $tsrc = "TSRC N/A"
-    } else {
-        (my $name, my @info) = $id3v2->get_frames('TSRC');
-        $tsrc = $info[0];
-        # print Dumper($id3v2->get_frames('TSRC'));
-    }
-
     # UNIQUE FILE IDENTIFIER
     if ($id3v2->frame_have('UFID') == 0) {
-        $ufid = "UFID N/A";
-        
+        $ufid = "UFID N/A";    
     } else {
         (my $name, my $info) = $id3v2->get_frames('UFID');
         $ufid = get_value($info->{'_Data'});
@@ -232,16 +177,7 @@ while ( my $file = $it->() ) {
         $tdrc = $info[0];
     }
 
-    # ORIGYEAR
-    if ($id3v2->frame_have('TDOR') == 0) {
-        $tdor = "TDOR N/A";
-    } else {
-        (my $name, my @info) = $id3v2->get_frames('TDOR');
-        $tdor = $info[0];
-    }
-
-
-    print "$trck\t$tpos\t$tcmp\t$tcon\t$tdor\t$tdrc\t$tenc\t$tsse\t$tden\t$tsrc\t$ufid\t$tit2   $talb   $tpe1   $tpe2\n";
+    print "$tpos\t$trck\t$tcmp\t$tcon\t$tdor\t$tit2\t$ufid\t$tdrc   $talb   $tpe2   $tpe1\n";
     $sth->execute(undef, $talb, $tpe2, $tpe1, $tpos, $trck, $tcon, $tdor, $tit2, $ufid, $tdrc, undef);
 
     $key++;

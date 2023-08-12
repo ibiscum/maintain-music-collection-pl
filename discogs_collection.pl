@@ -25,7 +25,7 @@ my $dbfile = $config->{_}->{dbfile};
 $req->header('Authorization' => 'Discogs token=' . $token);
 
 my $dbh = DBI->connect("dbi:SQLite:dbname=$dbfile","","");
-my $sql_select = 'SELECT DISTINCT ALBUM, ALBUMARTIST FROM ITEM i ORDER BY ALBUMARTIST ASC';
+my $sql_select = "SELECT DISTINCT ALBUM, ALBUMARTIST FROM ITEM i WHERE DISCOGS_RELEASE_ID IS NULL ORDER BY ALBUMARTIST ASC";
 my $sth_select = $dbh->prepare($sql_select);
 $sth_select->execute();
 

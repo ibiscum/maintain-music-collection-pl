@@ -39,7 +39,6 @@ my $tcom;
 my $tdor;
 my $ufid;
 
-     
 die "Usage: $0 DIRs" if not @ARGV;
      
 my $rule = Path::Iterator::Rule->new;
