@@ -29,6 +29,8 @@ my $track_number;
 my $track_count;
 my $year;
 my $date_modified;
+my $date_added;
+my $volume_adjustment;
 my $location;
 my @row;
 
@@ -62,6 +64,12 @@ LINE: while ( <IMLFILE> ) {
         elsif ($_ =~ /<key>Date Modified<\/key>/) {
             ($date_modified) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
         }
+        elsif ($_ =~ /<key>Date Added<\/key>/) {
+            ($date_added) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
+        }
+        elsif ($_ =~ /<key>Volume Adjustment<\/key>/) {
+            ($volume_adjustment) = ($_ =~ /<integer>(-?\d+)<\/integer>/);
+        }
         
         if ( m{$endof_stanza} ) {
 
@@ -71,9 +79,10 @@ LINE: while ( <IMLFILE> ) {
             elsif (!$track_count) { $track_count = 0; }
             elsif (!$year) { $year = 0; }
             elsif (!$date_modified) { $date_modified = "N/A"; }
+            elsif (!$date_added) { $date_added = "N/A"; }
+            elsif (!$volume_adjustment) { $volume_adjustment = 0; }
 
-
-            print "$track_id $disc_number/$disc_count $track_number/$track_count $year $date_modified\n";
+            print "$track_id $disc_number/$disc_count $track_number/$track_count $year $date_modified $date_added $volume_adjustment\n";
         }
     }
 
