@@ -7,8 +7,12 @@ use Data::Dumper;
 use Data::UUID;
 use open qw/:std :utf8/;
 use DBI;
+use Config::Tiny;
 
-my $dbfile = "/mnt/c/Users/Ulf/Music/iTunes/music.db";
+my $config = Config::Tiny->read('mp3_tag_db.conf');
+my $dbfile = $config->{_}->{dbfile};
+
+#my $dbfile = "/mnt/c/Users/Ulf/Music/iTunes/music.db";
 my $dbh = DBI->connect("dbi:SQLite:dbname=$dbfile","","");
 my $sth = $dbh->prepare('INSERT INTO MP3 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
  
