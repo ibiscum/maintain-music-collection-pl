@@ -6,3 +6,7 @@ Perl helper scripts for maintaining personal music collection.
 Tests with single Cassandra container.
 
 ```docker run -p 9042:9042 --rm --name cassandra -d cassandra:latest```
+
+Executing interactive cqlsh.
+
+```docker exec -it cassandra cqlsh```

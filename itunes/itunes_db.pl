@@ -102,14 +102,14 @@ LINE: while ( <IMLFILE> ) {
         elsif ($_ =~ /<key>Date Modified<\/key>/) {
             ($dt) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
             $dt = DateTime::Format::ISO8601->parse_datetime($dt);
-            $date_modified = $dt->epoch;
+            $date_modified = $dt->epoch * 1000;
 
 
         }
         elsif ($_ =~ /<key>Date Added<\/key>/) {
             ($dt) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
             $dt = DateTime::Format::ISO8601->parse_datetime($dt);
-            $date_added = $dt->epoch;
+            $date_added = $dt->epoch * 1000;
 
         }
         elsif ($_ =~ /<key>Volume Adjustment<\/key>/) {
@@ -121,7 +121,7 @@ LINE: while ( <IMLFILE> ) {
         elsif ($_ =~ /<key>Play Date UTC<\/key>/) {
             ($dt) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
             $dt = DateTime::Format::ISO8601->parse_datetime($dt);
-            $play_date_utc = $dt->epoch;
+            $play_date_utc = $dt->epoch * 1000;
         }
         elsif ($_ =~ /<key>Artwork Count<\/key>/) {
             ($artwork_count) = ($_ =~ /<integer>(\d+)<\/integer>/);
