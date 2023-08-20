@@ -4,6 +4,8 @@ use warnings;
 use Data::Dumper;
 use DBI;
 use Config::Tiny;
+use DateTime;
+use DateTime::Format::ISO8601;
 use open qw/:std :utf8/;
 
 my $config = Config::Tiny->read('itunes_db.conf');
@@ -57,6 +59,7 @@ LINE: while ( <IMLFILE> ) {
     
     if ( m{$begin_stanza} .. m{$endof_stanza} ) {
         my %row = ();
+        my $dt;
         
         if ($_ =~ /<key>Track ID<\/key>/) {
             ($track_id) = ($_ =~ /<integer>(\d+)<\/integer>/);
@@ -97,10 +100,17 @@ LINE: while ( <IMLFILE> ) {
             ($year) = ($_ =~ /<integer>(\d+)<\/integer>/);
         }
         elsif ($_ =~ /<key>Date Modified<\/key>/) {
-            ($date_modified) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
+            ($dt) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
+            $dt = DateTime::Format::ISO8601->parse_datetime($dt);
+            $date_modified = $dt->epoch;
+
+
         }
         elsif ($_ =~ /<key>Date Added<\/key>/) {
-            ($date_added) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
+            ($dt) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
+            $dt = DateTime::Format::ISO8601->parse_datetime($dt);
+            $date_added = $dt->epoch;
+
         }
         elsif ($_ =~ /<key>Volume Adjustment<\/key>/) {
             ($volume_adjustment) = ($_ =~ /<integer>(-?\d+)<\/integer>/);
@@ -109,7 +119,9 @@ LINE: while ( <IMLFILE> ) {
             ($play_count) = ($_ =~ /<integer>(\d+)<\/integer>/);
         }
         elsif ($_ =~ /<key>Play Date UTC<\/key>/) {
-            ($play_date_utc) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
+            ($dt) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
+            $dt = DateTime::Format::ISO8601->parse_datetime($dt);
+            $play_date_utc = $dt->epoch;
         }
         elsif ($_ =~ /<key>Artwork Count<\/key>/) {
             ($artwork_count) = ($_ =~ /<integer>(\d+)<\/integer>/);
@@ -125,11 +137,11 @@ LINE: while ( <IMLFILE> ) {
             elsif (!$track_number) { $track_number = 0; }
             elsif (!$track_count) { $track_count = 0; }
             elsif (!$year) { $year = 0; }
-            elsif (!$date_modified) { $date_modified = "N/A"; }
-            elsif (!$date_added) { $date_added = "N/A"; }
+            elsif (!$date_modified) { $date_modified = 0; }
+            elsif (!$date_added) { $date_added = 0; }
             elsif (!$volume_adjustment) { $volume_adjustment = 0; }
             elsif (!$play_count) { $play_count = 0; }
-            elsif (!$play_date_utc) { $play_date_utc = "N/A"; }
+            elsif (!$play_date_utc) { $play_date_utc = 0; }
             elsif (!$artwork_count) { $artwork_count = 0; }
 
             print "$track_id $name $artist $album_artist $album $genre $disc_number/$disc_count $track_number/$track_count \ 
