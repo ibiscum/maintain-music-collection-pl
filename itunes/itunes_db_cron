@@ -1,0 +1,2 @@
+*/10 * * * * itunesdb /app/itunes_db.pl >> /var/log/itunes_db.log
+# Don't remove the empty line at the end of this file. It is required to run the cron job
