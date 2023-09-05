@@ -3,28 +3,23 @@ use strict;
 use warnings;
 
 use Data::Dumper;
-use DBI;
-use Config::Tiny;
 use DateTime;
 use DateTime::Format::ISO8601;
-use open qw/:std :utf8/;
+use DBI;
+use File::Remove qw(remove);
+use JSON;
+use Digest::MD5 qw(md5_hex);
+use open qw(:std :utf8);
 
-my $config = Config::Tiny->read('itunes_db.conf');
-my $imlfile = $config->{_}->{imlfile};
+#remove('*.log');
 
-open (IMLFILE, "<$imlfile")  || die "Can't open $imlfile: $!\n";
+my $dbh = DBI->connect('dbi:Pg:dbname=music;host=localhost','postgres','secret',{AutoCommit=>1,RaiseError=>1,PrintError=>0});
 
-my $dbh = DBI->connect("dbi:Cassandra:host=localhost");
-$dbh->do("CREATE KEYSPACE IF NOT EXISTS music WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor' : 1 };");
+my $json = JSON->new;
+my $debug_log = "itunes_db_debug.log";
 
-$dbh->do("CREATE TABLE IF NOT EXISTS music.itunes_data (track_id int PRIMARY KEY, name text, artist text, album_artist text,
-album text, genre text, disc_number smallint, disc_count smallint, track_number smallint, track_count smallint, year smallint,
-date_modified timestamp, date_added timestamp, volume_adjustment float, play_count smallint, play_date_utc timestamp,
-artwork_count smallint, persistent_id text);");
-
-my $sth_itunes = $dbh->prepare('INSERT INTO music.itunes_data (track_id, name, artist, album_artist, album, genre, disc_number, 
-disc_count, track_number, track_count, year, date_modified, date_added, volume_adjustment, play_count, play_date_utc,
-artwork_count, persistent_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);');
+open (IMLFILE, "< $ENV{ITUNES_MUSIC_LIBRARY}") || die "Can't open $ENV{ITUNES_MUSIC_LIBRARY}: $!\n";
+open (DEBUGLOG, ">> $debug_log")  || die "Can't open $debug_log: $!\n";
 
 local $SIG{__WARN__} = sub {
     my $message = shift;
@@ -44,13 +39,25 @@ my $track_count;
 my $year;
 my $date_modified;
 my $date_added;
-my $volume_adjustment;
+my $volume_adjustment = 0;
 my $play_count;
+my $play_date;
 my $play_date_utc;
 my $artwork_count;
 my $persistent_id;
 
 my @row;
+
+$dbh->do("DROP TABLE IF EXISTS itunes_data");
+
+#my $sth = $dbh->table_info('','', 'itunes_data', 'TABLE');
+#my $tab_ref = $sth->fetchall_arrayref;
+
+$dbh->do('CREATE TABLE itunes_data ( persistent_id varchar(100) PRIMARY KEY, 
+track_id integer, name text, artist text, album_artist text, album text, genre varchar(100), 
+disc_number smallint, disc_count smallint,track_number smallint, track_count smallint, 
+year date, date_modified timestamp, date_added timestamp, volume_adjustment smallint, 
+play_count integer, play_date_utc timestamp, artwork_count smallint );') || die $dbh->errstr;
 
 my $begin_stanza = qr/<key>Track ID<\/key>/i;
 my $endof_stanza = qr/<key>Location<\/key>/i;
@@ -68,18 +75,26 @@ LINE: while ( <IMLFILE> ) {
         elsif ($_ =~ /<key>Name<\/key>/) {
             $_ =~ s/^\t+//;
             $name = substr($_, 23, -10);
+            $name =~ s/'/''/g;
+            $name =~ s/&#38;/&/g;
         }
         elsif ($_ =~ /<key>Artist<\/key>/) {
             $_ =~ s/^\t+//;
             $artist = substr($_, 25, -10);
+            $artist =~ s/'/''/g;
+            $artist =~ s/&#38;/&/g;
         }
         elsif ($_ =~ /<key>Album Artist<\/key>/) {
             $_ =~ s/^\t+//;
             $album_artist = substr($_, 31, -10);
+            $album_artist =~ s/'/''/g;
+            $album_artist =~ s/&#38;/&/g;
         }
         elsif ($_ =~ /<key>Album<\/key>/) {
             $_ =~ s/^\t+//;
             $album = substr($_, 24, -10);
+            $album =~ s/'/''/g;
+            $album =~ s/&#38;/&/g;
         }
         elsif ($_ =~ /<key>Genre<\/key>/) {
             $_ =~ s/^\t+//;
@@ -99,19 +114,17 @@ LINE: while ( <IMLFILE> ) {
         }
         elsif ($_ =~ /<key>Year<\/key>/) {
             ($year) = ($_ =~ /<integer>(\d+)<\/integer>/);
+            $year = $year . "-01-01";
         }
         elsif ($_ =~ /<key>Date Modified<\/key>/) {
             ($dt) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
-            $dt = DateTime::Format::ISO8601->parse_datetime($dt);
-            $date_modified = $dt->epoch * 1000;
-
-
+            $dt =~ s/[T,Z]/ /g;
+            $date_modified = $dt;
         }
         elsif ($_ =~ /<key>Date Added<\/key>/) {
             ($dt) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
-            $dt = DateTime::Format::ISO8601->parse_datetime($dt);
-            $date_added = $dt->epoch * 1000;
-
+            $dt =~ s/[T,Z]/ /g;
+            $date_added = $dt;
         }
         elsif ($_ =~ /<key>Volume Adjustment<\/key>/) {
             ($volume_adjustment) = ($_ =~ /<integer>(-?\d+)<\/integer>/);
@@ -121,8 +134,8 @@ LINE: while ( <IMLFILE> ) {
         }
         elsif ($_ =~ /<key>Play Date UTC<\/key>/) {
             ($dt) = ($_ =~ /<date>(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)<\/date>/);
-            $dt = DateTime::Format::ISO8601->parse_datetime($dt);
-            $play_date_utc = $dt->epoch * 1000;
+            $dt =~ s/[T,Z]/ /g;
+            $play_date_utc = $dt;
         }
         elsif ($_ =~ /<key>Artwork Count<\/key>/) {
             ($artwork_count) = ($_ =~ /<integer>(\d+)<\/integer>/);
@@ -133,24 +146,25 @@ LINE: while ( <IMLFILE> ) {
         
         if ( m{$endof_stanza} ) {
 
-            if (!$disc_number) { $disc_number = 0; }
-            elsif (!$disc_count) { $disc_count = 0; }
-            elsif (!$track_number) { $track_number = 0; }
-            elsif (!$track_count) { $track_count = 0; }
-            elsif (!$year) { $year = 0; }
-            elsif (!$date_modified) { $date_modified = 0; }
-            elsif (!$date_added) { $date_added = 0; }
-            elsif (!$volume_adjustment) { $volume_adjustment = 0; }
-            elsif (!$play_count) { $play_count = 0; }
-            elsif (!$play_date_utc) { $play_date_utc = 0; }
-            elsif (!$artwork_count) { $artwork_count = 0; }
-
-            print "$track_id $name $artist $album_artist $album $genre $disc_number/$disc_count $track_number/$track_count \ 
-            $year $date_modified $date_added $volume_adjustment $play_count $play_date_utc $artwork_count $persistent_id\n";
-
-            $sth_itunes->execute($track_id, $name, $artist, $album_artist, $album, $genre, $disc_number, $disc_count, 
-            $track_number, $track_count, $year, $date_modified, $date_added, $volume_adjustment, $play_count, $play_date_utc,
-            $artwork_count, $persistent_id);
+            $dbh->do("INSERT INTO itunes_data ( persistent_id, track_id, name,
+            artist, album_artist, album, genre, disc_number, disc_count,track_number,
+            track_count, year, date_modified, date_added, volume_adjustment, play_count, 
+            play_date_utc, artwork_count ) VALUES ( '$persistent_id', $track_id, '$name',
+            '$artist', '$album_artist', '$album', '$genre', $disc_number, $disc_count, $track_number,
+            $track_count, '$year', '$date_modified', '$date_added', $volume_adjustment, $play_count, 
+            '$play_date_utc', $artwork_count );") || die $dbh->errstr;
+            
+            $disc_number = 0;
+            $disc_count = 0;
+            $track_number = 0;
+            $track_count = 0;
+            $year = 0;
+            $date_modified = '1970-01-01 00:00:00';
+            $date_added = '1970-01-01 00:00:00';
+            $volume_adjustment = 0;
+            $play_count = 0;
+            $play_date_utc = '1970-01-01 00:00:00';
+            $artwork_count = 0;
         }
     }
 
@@ -160,6 +174,6 @@ LINE: while ( <IMLFILE> ) {
 }
 
 close IMLFILE;
+close DEBUGLOG;
 
-$dbh->disconnect;
 exit 0;
