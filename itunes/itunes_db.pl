@@ -24,6 +24,19 @@ open (DEBUGLOG, "> $debug_log")  || die "Can't open $debug_log: $!\n";
 #    die $message;
 #};
 
+my $dbh = DBI->connect('dbi:Pg:dbname=music;host=localhost','postgres','secret', { AutoCommit => 1 });
+
+$dbh->do('CREATE TABLE IF NOT EXISTS itunes_data ( persistent_id varchar(100) PRIMARY KEY, 
+track_id integer, name text, artist text, album_artist text, album text, genre varchar(100), 
+disc_number smallint, disc_count smallint,track_number smallint, track_count smallint, 
+year date, date_modified timestamp, date_added timestamp, volume_adjustment smallint, 
+play_count integer, play_date_utc timestamp, artwork_count smallint );');
+
+my $begin_stanza = qr/<key>Track ID<\/key>/i;
+my $endof_stanza = qr/<key>Location<\/key>/i;
+
+my %itunes_data = ();
+
 my $persistent_id;
 my $track_id;
 my $name;
@@ -43,19 +56,6 @@ my $play_count;
 my $play_date;
 my $play_date_utc;
 my $artwork_count;
-
-my $dbh = DBI->connect('dbi:Pg:dbname=music;host=localhost','postgres','secret', { AutoCommit => 1 });
-
-$dbh->do('CREATE TABLE IF NOT EXISTS itunes_data ( persistent_id varchar(100) PRIMARY KEY, 
-track_id integer, name text, artist text, album_artist text, album text, genre varchar(100), 
-disc_number smallint, disc_count smallint,track_number smallint, track_count smallint, 
-year date, date_modified timestamp, date_added timestamp, volume_adjustment smallint, 
-play_count integer, play_date_utc timestamp, artwork_count smallint );');
-
-my $begin_stanza = qr/<key>Track ID<\/key>/i;
-my $endof_stanza = qr/<key>Location<\/key>/i;
-
-my %itunes_data = ();
 
 LINE: while ( <IMLFILE> ) {
     chomp $_;
@@ -136,7 +136,7 @@ LINE: while ( <IMLFILE> ) {
         }
         elsif ($_ =~ /<key>Artwork Count<\/key>/) {
             ($artwork_count) = ($_ =~ /<integer>(\d+)<\/integer>/);
-        }
+        }    
     }  
     
     if ( m{$endof_stanza} ) {
@@ -147,7 +147,7 @@ LINE: while ( <IMLFILE> ) {
         if (!$track_number)      { $track_number = 0; }
         if (!$track_count)       { $track_count = 0; }
         if (!$year)              { $year = '1970-01-01'; }
-        if (!$volume_adjustment) { $volume_adjustment = 0; }
+
         if (!$play_count)        { $play_count = 0; }
         if (!$artwork_count)     { $artwork_count = 0; }
         if (!$date_added)        { $date_added = '1970-01-01 00:00:00'; }
@@ -174,24 +174,23 @@ foreach my $p_id (keys %itunes_data) {
 
     my @values = @{ $itunes_data{$p_id} };
 
-    $track_id      = $values[0];
-    $name          = $values[1];
-    $artist        = $values[2];
-    $album_artist  = $values[3];
-    $album         = $values[4];
-    $genre         = $values[5];
-    $disc_number   = $values[6];
-    $disc_count    = $values[7];
-    $track_number  = $values[8];
-    $track_count   = $values[9];
-    $year          = $values[10];
-    $date_modified = $values[11];
-    $date_added    = $values[12];
-    $volume_adjustment = $values[13];
-    $play_count    = $values[14];
-    $play_date_utc = $values[15];
-
-    $artwork_count = $values[16];
+    my $track_id      = $values[0];
+    my $name          = $values[1];
+    my $artist        = $values[2];
+    my $album_artist  = $values[3];
+    my $album         = $values[4];
+    my $genre         = $values[5];
+    my $disc_number   = $values[6];
+    my $disc_count    = $values[7];
+    my $track_number  = $values[8];
+    my $track_count   = $values[9];
+    my $year          = $values[10];
+    my $date_modified = $values[11];
+    my $date_added    = $values[12];
+    my $volume_adjustment = $values[13];
+    my $play_count    = $values[14];
+    my $play_date_utc = $values[15];
+    my $artwork_count = $values[16];
 
     $dbh->do("INSERT INTO itunes_data ( persistent_id, track_id, name, artist, album_artist, album, genre,
     disc_number, disc_count,track_number, track_count, year, date_modified, date_added, volume_adjustment, 
